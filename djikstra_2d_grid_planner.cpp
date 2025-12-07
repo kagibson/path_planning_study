@@ -14,15 +14,11 @@
 
 const int INF = std::numeric_limits<int>::max();
 
-char int_to_alpha(const int num)
-{
-  if ((num >= 0) && (num < 26)) {
-    return (char)('A'+num);
-  }
-  return '?'; 
-}
-
 struct Cell
+/**
+ * @brief Represents a costmap cell.
+ * 
+ */
 {
   Cell(int row, int col)
   {
@@ -53,22 +49,12 @@ struct Cell
   int row;
 };
 
-long long chebychev_distance(const Cell &p1, const Cell &p2)
-{
-  return std::max(llabs(p2.col-p1.col), llabs(p2.row-p2.row));
-}
-
-long long manhattan_distance(const Cell &p1, const Cell &p2)
-{
-  return llabs(p2.col-p1.col) + llabs(p2.row-p1.row);
-}
-
-long long euclidean_distance(const Cell &p1, const Cell &p2)
-{
-  return std::sqrt((p2.col - p1.col)^2 + (p2.row - p1.row)^2);
-}
-
 class Costmap2D
+/**
+ * @brief 2D costmap where each cell represents a real-world area
+ * with a traversal cost between 0 and 255.
+ * 
+ */
 {
 public:
   Costmap2D(int rows, int cols, uint8_t free_space_cost) : 
@@ -80,7 +66,12 @@ public:
   Costmap2D(int height, int width, const std::vector<uint8_t> &data) : 
     rows_{height}, cols_{width}, data_{std::make_shared<std::vector<uint8_t>>(data)} {}
 
-  uint8_t get_cost(const Cell &coords) const {
+  uint8_t get_cost(const Cell &coords) const
+  /**
+   * @brief Return the cost for a given cell.
+   * 
+   */
+  {
     if (coords.col >= cols_ || coords.row >= rows_ || coords.col < 0 || coords.row < 0) {
       throw std::out_of_range("Coordinates of of map range.");
     } else {
@@ -99,6 +90,10 @@ private:
 
 };
 
+/**
+ * @brief 2D path planner based on Djikstra's shortest path algorithm.
+ * 
+ */
 class Djikstra2DPlanner
 {
 public:
@@ -108,6 +103,14 @@ public:
     costmap_ptr_ = costmap_ptr;
   }
 
+  /**
+   * @brief Returns the optimal (lowest cost) path between source costmap cell
+   * and destination costmap cell.
+   * 
+   * @param src Cell in which path should start.
+   * @param dest Cell in which path should terminate.
+   * @return std::vector<Cell> Path from source cell to destination cell.
+   */
   std::vector<Cell> shortest_path(Cell src, Cell dest)
   {
     
@@ -193,128 +196,6 @@ private:
   std::shared_ptr<Costmap2D> costmap_ptr_;
 };
 
-struct NodeRecord {
-  long long f; // g(n) + h(n)
-  long long g; // Cost from start to cell
-  Cell cell;
-
-  bool operator>(const NodeRecord &other) const {
-    return f > other.f;
-  }
-
-  bool operator<(const NodeRecord &other) const {
-    return f < other.f;
-  }
-};
-
-using HeuristicFcn = std::function<long long(const Cell&, const Cell&)>;
-
-class AStar2DPlanner
-{
-public:
-
-  AStar2DPlanner(const std::shared_ptr<Costmap2D> &costmap_ptr, HeuristicFcn heuristic)
-  {
-    costmap_ptr_ = costmap_ptr;
-    heuristic_ = heuristic;
-  }
-
-  std::vector<Cell> shortest_path(Cell src, Cell dest)
-  {
-    
-    std::vector<Cell> path;
-
-    if (costmap_ptr_ ==  nullptr) {
-      std::cout << "Costmap not provided" << std::endl;
-      return path;
-    }
-
-    // Initialize g_costs
-    std::vector<std::vector<long long>> g_costs;
-    for (int i=0; i<costmap_ptr_->get_rows(); i++) {
-      g_costs.emplace_back(costmap_ptr_->get_cols(), INF);
-    }
-    g_costs[src.row][src.col] = 0;
-
-    std::vector<std::vector<Cell>> parents;
-    for (int i=0; i<costmap_ptr_->get_rows(); i++) {
-      parents.emplace_back(costmap_ptr_->get_cols(), Cell(-1,-1));
-    }// TODO: I think that this and g_costs could be a different data structure as we won't be visiting every cell
-    parents[src.row][src.col] = src;
-
-    std::priority_queue<NodeRecord, std::vector<NodeRecord>, std::greater<NodeRecord>> open_set;
-    open_set.emplace(NodeRecord{0, 0, Cell(src.row, src.col)});
-
-    int rows = costmap_ptr_->get_rows();
-    int cols = costmap_ptr_->get_cols();
-
-    while (!open_set.empty()) {
-      auto curr = open_set.top();
-      open_set.pop();
-      Cell cell = curr.cell;
-
-      long long g_cost = g_costs.at(cell.row).at(cell.col);
-
-      if (cell == dest) {
-        std::cout << "Found goal!" << std::endl;
-        break;
-      }
-
-      if (g_cost != curr.g) { 
-        /* Stale entry */
-        continue;;
-      }
-
-      /* Update all neighbor costs */
-      std::vector<Cell> neighbor_cells =
-      {
-        {cell.row-1, cell.col-1},
-        {cell.row-1, cell.col},
-        {cell.row-1, cell.col+1},
-        {cell.row, cell.col-1},
-        {cell.row, cell.col+1},
-        {cell.row+1, cell.col-1},
-        {cell.row+1, cell.col},
-        {cell.row+1, cell.col+1}
-      };
-
-      for (const auto &neighbor_cell : neighbor_cells) {
-        if (neighbor_cell.col < 0 || neighbor_cell.col >= cols || 
-        neighbor_cell.row < 0 || neighbor_cell.row >= rows) {
-          continue;
-        }
-        
-        long long new_g = g_cost + costmap_ptr_->get_cost(neighbor_cell);
-        if (new_g < g_costs.at(neighbor_cell.row).at(neighbor_cell.col)) {
-          g_costs.at(neighbor_cell.row).at(neighbor_cell.col) = new_g;
-          parents.at(neighbor_cell.row).at(neighbor_cell.col) = cell;
-          long long new_f = new_g + heuristic_(neighbor_cell, dest);
-          NodeRecord nr {new_f, new_g, neighbor_cell};
-          open_set.emplace(nr);
-        }
-      }
-    }
-    auto curr = dest;
-    path.push_back(dest);
-    while (curr != src) {
-      auto parent = parents.at(curr.row).at(curr.col);
-      path.push_back(parent);
-      curr = parent;
-    }
-    std::reverse(path.begin(), path.end());
-    return path;
-  }
-
-  void set_heuristic(HeuristicFcn heuristic) {
-    heuristic_ = heuristic;
-  }
-
-private:
-  std::shared_ptr<Costmap2D> costmap_ptr_;
-  HeuristicFcn heuristic_;
-};
-
-
 cv::Mat g_base;
 cv::Mat g_display;
 Cell g_src(-1, -1);
@@ -323,6 +204,15 @@ bool g_have_src = false;
 bool g_have_dest = false;
 bool g_need_replan = false;
 
+/**
+ * @brief OpenCV callback for mouse events. Used to track source and destination pose clicks.
+ * 
+ * @param event 
+ * @param x 
+ * @param y 
+ * @param flags 
+ * @param userdata 
+ */
 void mouseCallback(int event, int x, int y, int flags, void* userdata)
 {
     if (!g_have_src && (event == cv::EVENT_LBUTTONDOWN)) {
@@ -352,19 +242,6 @@ void mouseCallback(int event, int x, int y, int flags, void* userdata)
 
     cv::imshow("Costmap", g_display);
 }
-
-long long get_total_path_cost(const std::shared_ptr<Costmap2D> &costmap, const std::vector<Cell> &path)
-{
-  long long total_cost = 0;
-
-  // Skip the first cell (src), because entering it costs nothing
-  for (size_t i = 1; i < path.size(); i++) {
-      total_cost += costmap->get_cost(path[i]);
-  }
-
-  return total_cost;
-}
-
 
 int main(int argc, char **argv)
 {
@@ -408,10 +285,8 @@ int main(int argc, char **argv)
   cv::namedWindow("Costmap", cv::WINDOW_NORMAL);
   cv::setMouseCallback("Costmap", mouseCallback);
 
-  Djikstra2DPlanner planner_dijkstra(costmap);
-  AStar2DPlanner planner_astar(costmap, chebychev_distance);
+  Djikstra2DPlanner planner(costmap);
 
-  // TODO:  demonstrate different heuristics, weighting of heuristic vs cost, diagonal move costs
   while (true)
   {
       int key = cv::waitKey(10);
@@ -419,50 +294,11 @@ int main(int argc, char **argv)
 
       if (g_need_replan && g_have_src && g_have_dest)
       {
-          // Run planner
-          auto djikstra_start = std::chrono::high_resolution_clock::now();
-          auto path_djikstra = planner_dijkstra.shortest_path(g_src, g_dest);
-          auto djikstra_stop = std::chrono::high_resolution_clock::now();
-          auto djikstra_duration = std::chrono::duration_cast<std::chrono::microseconds>(djikstra_stop - djikstra_start);
-          std::cout << "Djikstra took " << djikstra_duration.count() << " microseconds to plan path." << std::endl;
-          std::cout << "Total cost is " << get_total_path_cost(costmap, path_djikstra) << std::endl;
-          
-          planner_astar.set_heuristic(chebychev_distance);
-          auto astar_start = std::chrono::high_resolution_clock::now();
-          auto path_astar = planner_astar.shortest_path(g_src, g_dest);
-          auto astar_stop = std::chrono::high_resolution_clock::now();
-          auto astar_duration = std::chrono::duration_cast<std::chrono::microseconds>(astar_stop - astar_start);
-          std::cout << "A* with chebyshev heuristic took " << astar_duration.count() << " microseconds to plan path." << std::endl;
-          std::cout << "Total cost is " << get_total_path_cost(costmap, path_astar) << std::endl;
-
-          planner_astar.set_heuristic(manhattan_distance);
-          astar_start = std::chrono::high_resolution_clock::now();
-          auto path_astar_manhattan = planner_astar.shortest_path(g_src, g_dest);
-          astar_stop = std::chrono::high_resolution_clock::now();
-          astar_duration = std::chrono::duration_cast<std::chrono::microseconds>(astar_stop - astar_start);
-          std::cout << "A* with manhattan heuristic took " << astar_duration.count() << " microseconds to plan path." << std::endl;
-          std::cout << "Total cost is " << get_total_path_cost(costmap, path_astar_manhattan) << std::endl;
-
-          planner_astar.set_heuristic(euclidean_distance);
-          astar_start = std::chrono::high_resolution_clock::now();
-          auto path_astar_euclidean = planner_astar.shortest_path(g_src, g_dest);
-          astar_stop = std::chrono::high_resolution_clock::now();
-          astar_duration = std::chrono::duration_cast<std::chrono::microseconds>(astar_stop - astar_start);
-          std::cout << "A* with euclidean heuristic took " << astar_duration.count() << " microseconds to plan path." << std::endl;
-          std::cout << "Total cost is " << get_total_path_cost(costmap, path_astar_euclidean) << std::endl;\
+          auto path = planner.shortest_path(g_src, g_dest);
 
           // Draw path
-          for (const auto& p : path_djikstra) {
+          for (const auto& p : path) {
               g_display.at<cv::Vec3b>(p.row, p.col) = {0, 0, 255};
-          }
-          for (const auto& p : path_astar) {
-              g_display.at<cv::Vec3b>(p.row, p.col) = {0, 255, 0};
-          }
-          for (const auto& p : path_astar_manhattan) {
-              g_display.at<cv::Vec3b>(p.row, p.col) = {255, 0, 0};
-          }
-          for (const auto& p : path_astar_euclidean) {
-              g_display.at<cv::Vec3b>(p.row, p.col) = {255, 0, 255};
           }
 
           cv::imshow("Costmap", g_display);
