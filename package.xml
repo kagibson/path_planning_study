@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<package format="2">
+    <name>path_planning_practice</name>
+    <version>0.0.0</version>
+    <description>A package for path planning practice</description>
+
+    <maintainer email="todo@todo.com">TODO</maintainer>
+    <license>TODO</license>
+
+    <url type="website">http://wiki.ros.org/path_planning_practice</url>
+    <author email="todo@todo.com">TODO</author>
+
+    <buildtool_depend>ament_cmake</buildtool_depend>
+
+    <build_depend>rclcpp</build_depend>
+    <build_depend>rclcpp_action</build_depend>
+    <build_depend>std_msgs</build_depend>
+    <build_depend>geometry_msgs</build_depend>
+    <build_depend>nav2_msgs</build_depend>
+
+    <exec_depend>rclcpp</exec_depend>
+    <exec_depend>rclcpp_action</exec_depend>
+    <exec_depend>std_msgs</exec_depend>
+    <exec_depend>geometry_msgs</exec_depend>
+    <exec_depend>nav2_msgs</exec_depend>
+
+    <export>
+        <build_type>ament_cmake</build_type>
+    </export>
+
+</package>

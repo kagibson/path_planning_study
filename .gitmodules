@@ -1,0 +1,3 @@
+[submodule "Dubins-Curves"]
+	path = Dubins-Curves
+	url = https://github.com/AndrewWalker/Dubins-Curves.git

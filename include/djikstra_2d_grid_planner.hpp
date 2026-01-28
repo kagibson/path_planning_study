@@ -6,7 +6,7 @@
 #include "cell_2d.hpp"
 #include "common.hpp"
 #include "costmap_2d.hpp"
-
+#include "nav2_msgs/msg/costmap.hpp"
 /**
  * @brief 2D path planner based on Djikstra's shortest path algorithm.
  * 
@@ -21,8 +21,16 @@ public:
  * @param grid_connectivity 
  */
   Djikstra2DGridPlanner(
-    const std::shared_ptr<Costmap2D> & costmap_ptr,
+    const std::shared_ptr<nav2_msgs::msg::Costmap> & costmap_ptr,
     GridConnectivity grid_connectivity = GridConnectivity::FOUR_CONNECTED);
+
+  /**
+   * @brief Returns a grid of minimum costs from source cell to every other reachable cell
+   * in the costmap.
+   * @param src Cell in which path should start.
+   * @return std::vector<std::vector<double>> 2D grid of minimum costs from source cell.
+   */
+  std::vector<std::vector<double>> get_minimum_distance_grid(const Cell& src);
 
   /**
    * @brief Returns the optimal (lowest cost) path between source costmap cell
@@ -35,7 +43,7 @@ public:
   std::vector<Cell> shortest_path(Cell src, Cell dest);
 
 private:
-  std::shared_ptr<Costmap2D> costmap_ptr_;
+  std::shared_ptr<nav2_msgs::msg::Costmap> costmap_ptr_;
   GridConnectivity grid_connectivity_;
 };
 
